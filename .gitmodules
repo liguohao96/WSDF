@@ -1,0 +1,9 @@
+[submodule "3rdparty/spiralnet_plus"]
+	path = 3rdparty/spiralnet_plus
+	url = https://github.com/sw-gong/spiralnet_plus.git
+[submodule "3rdparty/nvdiffrast"]
+	path = 3rdparty/nvdiffrast
+	url = https://github.com/NVlabs/nvdiffrast
+[submodule "3rdparty/tiny-cuda-nn"]
+	path = 3rdparty/tiny-cuda-nn
+	url = https://github.com/NVlabs/tiny-cuda-nn.git
