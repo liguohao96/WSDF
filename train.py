@@ -21,7 +21,8 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
 sys.path.insert(0, ROOT)
 from preprocessing.generate_dataset_cache import get_dataset_tag
-from utils import device_control
+from utils           import device_control
+from utils.io        import mesh_io
 from utils.mesh_tool import compute_normal
 sys.path.pop(0)
 
@@ -147,6 +148,7 @@ def render_nvdr(m2v, prj, ver, tri, uv, uv_tri, tex, H=512, W=512, FOV=90, local
     BS     = ver.size(0)
     device = ver.device
     drctx = locals.get("drctx", dr.RasterizeCudaContext(device=device))
+    locals["drctx"] = drctx
 
     tri_l = tri.long()
     face_nrm = torch.cross(ver[:,tri_l[:,1]]-ver[:,tri_l[:,0]], ver[:,tri_l[:,2]]-ver[:,tri_l[:,0]], dim=-1)
@@ -259,7 +261,18 @@ def train(args):
             TOPOLOGY_CONFIG["tri"]     = torch.as_tensor(data["f"].astype(np.int32)).reshape(-1, 3)
             TOPOLOGY_CONFIG["uv"]      = torch.as_tensor(texr["vt"].astype(np.float32)).reshape(-1, 2)
             TOPOLOGY_CONFIG["uv_tri"]  = torch.as_tensor(texr["ft"].astype(np.int32)).reshape(-1, 3)
-        
+
+        elif mesh_topology == "FaceScape":
+
+            data = np.load(os.path.join(ROOT, "Data", "3DMM_FaceScape.npz"), allow_pickle=True)
+            ver = (data["id_mean"] + data["exp_mean"]).reshape(-1, 3)
+            tri = (data["tri"]).reshape(-1, 3)
+            
+            TOPOLOGY_CONFIG["ver"]     = torch.as_tensor(ver.astype(np.float32)).reshape(-1, 3)
+            TOPOLOGY_CONFIG["tri"]     = torch.as_tensor(tri.astype(np.int32)).reshape(-1, 3)
+            TOPOLOGY_CONFIG["uv"]      = torch.as_tensor(data["uv"].astype(np.float32)).reshape(-1, 2)
+            TOPOLOGY_CONFIG["uv_tri"]  = torch.as_tensor(data["uv_tri"].astype(np.int32)).reshape(-1, 3)
+
         for k, v in TOPOLOGY_CONFIG.items():
             TOPOLOGY_CONFIG[k] = v.to(device)
         
@@ -306,6 +319,7 @@ def train(args):
         pid_count = 0
         for cfg in dataset_cfg.get("train"):
             train_dataset = get_class(cfg.get("type"))(*cfg.get("args"), **cfg.get("kwargs"))
+            print(train_dataset)
             cached_data   = torch.load(os.path.join(ROOT, "Data", f"DatasetCache_{get_dataset_tag(train_dataset)}.pth"))
 
             # pid may be [1, ... 1, 3, ...]
@@ -355,8 +369,8 @@ def train(args):
         from models.neutral_bank import NeutralBank
         from models.common       import Normalize
         from models.VAEs         import NaiveVAEs
-
-        spiral_cache = torch.load(os.path.join(ROOT, "Data", "SpiralPlusCache_FLAME2020.pth"), map_location="cpu")
+        
+        spiral_cache = torch.load(os.path.join(ROOT, "Data", f"SpiralPlusCache_{mesh_topology}.pth"), map_location="cpu")
         spiral_indices      = spiral_cache["S"]
         downsample_matrices = spiral_cache["D"]
 
@@ -679,17 +693,22 @@ def train(args):
 
                 return r1, r2
 
-            test_ds_name = "coma"
+            test_ds_name = list(CACHED_TESTDATA.keys())[0]
             with torch.no_grad():
                 group_by_id = defaultdict(list)
+                group_by_exp= defaultdict(list)
 
                 recon_error_list = []
                 id_decompos_list = []
                 id_decompos_pids = []
                 id_decompos_list2= []
+                exp_decompos_list = []
+                exp_decompos_pids = []
+                exp_decompos_list2= []
                 neu_error_pids   = []
                 neu_error_list   = []
 
+                print(test_ds_name)
                 cached_datast = CACHED_TESTDATA[test_ds_name]
                 neugt_by_id   = cached_datast.get("neu_by_pid", {})
 
@@ -698,6 +717,7 @@ def train(args):
 
                     ver = cached_datast["ver"][index].to(device, non_blocking=True)
                     pid = cached_datast["pid"][index].to(device, non_blocking=True)
+                    eid = cached_datast["eid"][index].to(device, non_blocking=True)
 
                     ind_prm, exp_prm = Encoder(Norm(ver))
                     ind_vec, (ind_mu, ind_lv) = VAEHead(ind_prm)
@@ -705,6 +725,7 @@ def train(args):
 
                     rec = Norm.invert(Decoder(ind_vec, exp_vec))
                     neu = Norm.invert(Decoder(ind_vec, 0*exp_vec))
+                    exp = Norm.invert(Decoder(0*ind_vec, exp_vec))
 
                     # if device_control.ddp_enabled:
                     #     ver = device_control.gather(ver)
@@ -712,13 +733,16 @@ def train(args):
                     #     rec = device_control.gather(rec)
                     #     neu = device_control.gather(neu)
                     
-                    ver, pid, rec, neu = map(lambda x:x.detach().cpu().numpy(), [ver, pid, rec, neu])
+                    ver, pid, eid = map(lambda x:x.detach().cpu().numpy(), [ver, pid, eid])
+                    rec, neu, exp = map(lambda x:x.detach().cpu().numpy(), [rec, neu, exp])
                     
                     n_avd  = evaluation_avd(rec, ver)
                     recon_error_list.extend(n_avd)
                     
                     for pi, v in zip(pid, neu):
                         group_by_id[pi].append(v)
+                    for ei, v in zip(eid, exp):
+                        group_by_exp[ei].append(v)
 
                 for k, v in group_by_id.items():
                     v = np.stack(v, axis=0)        # N, V, 3
@@ -736,12 +760,21 @@ def train(args):
                     else:
                         print(f"{k} is not evaluated with NEU because of missing GT (got {neugt_by_id.keys()})")
 
+                for k, v in group_by_exp.items():
+                    v = np.stack(v, axis=0)        # N, V, 3
+                    r1, r2 = evaluation_std(v)
+                    exp_decompos_pids.append(k)
+                    # exp_decompos_list.append(r1)
+                    exp_decompos_list2.append(r2)
+
                 metric_d["reconstruction.mean"]   = np.mean(  recon_error_list)
                 metric_d["reconstruction.median"] = np.median(recon_error_list)
                 # metric_d["ind_decompose.mean"]    = np.mean(  id_decompos_list)
                 # metric_d["ind_decompose.median"]  = np.median(id_decompos_list)
-                metric_d["ind_decompose2.mean"]   = np.mean( id_decompos_list2)
+                metric_d["ind_decompose2.mean"]   = np.mean(  id_decompos_list2)
                 metric_d["ind_decompose2.median"] = np.median(id_decompos_list2)
+                metric_d["exp_decompose2.mean"]   = np.mean(  exp_decompos_list2)
+                metric_d["exp_decompose2.median"] = np.median(exp_decompos_list2)
                 metric_d["neutralization.mean"]    = np.mean(  neu_error_list)
                 metric_d["neutralization.median"]  = np.median(neu_error_list)
             return metric_d
@@ -776,6 +809,8 @@ def train(args):
                 Encoder.train()
                 VAEHead.train()
                 Decoder.eval()
+
+            save_function(epoch, step)
 
         Encoder.train()
         VAEHead.train()
@@ -815,9 +850,7 @@ def train(args):
                         amp_scaler.unscale_(optm)
                         for pg in optm.param_groups:
                             params = pg['params']
-                            # torch.nn.utils.clip_grad_value_(params, 5)
                             for p in filter(lambda p: p.grad is not None, params):
-                                pass
                                 p.grad.data.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
                         device_control.broadcast_optimizer(optm)
                         amp_scaler.step(optm)
@@ -848,7 +881,9 @@ def train(args):
                     VAEHead.train()
                     Decoder.train()
 
-            if (epoch+1) % SAVING_N_EPOCHS == 0 and (epoch+1 == E_END):
+                    save_function(epoch, step)
+
+            if (epoch+1 == E_END):
                 save_function(epoch, step)
             schd.step()
 

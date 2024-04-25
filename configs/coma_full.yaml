@@ -1,0 +1,52 @@
+name: coma
+mesh_topology: FLAME2020
+dataset:
+  train:
+    - type: datasets.mesh_dataset.RegisteredMeshDataset
+      args:
+        - Data/Datasets/CoMA/COMA_data
+        - Data/dataset_split/CoMA/coma-coma_interpolation-train.json
+      kwargs:
+        scale_to_millimeter: 1000
+  test:
+    coma:
+      type: datasets.mesh_dataset.RegisteredMeshDataset
+      args:
+        - Data/Datasets/CoMA/COMA_data
+        - Data/dataset_split/CoMA/coma-coma_interpolation-test.json
+      kwargs:
+        scale_to_millimeter: 1000
+model:
+  num_vec: 16
+  num_ind: 4
+  num_exp: 4
+  Encoder:
+    channels: [16, 32, 64, 64, 64, 128]
+  Decoder:
+    channels: [256, 256, 256]
+  NeuBank:
+    beta: 0.99
+loss:
+  weight:
+    rec: 1
+    kl:  1
+    neu: 10
+    mi:  10
+    jac: 10
+  gamma: [0, 5000]
+optimizer:
+  type: torch.optim.AdamW
+  kwargs:
+    lr: 0.0001             # 1e-4
+    weight_decay: 0.00001  # 1e-5
+scheduler:
+  type: torch.optim.lr_scheduler.StepLR
+  args: [1]
+  kwargs:
+    gamma: 1
+train:
+  training_epochs: 100
+  accumulate_iter: 1
+  log_state_steps: 1000
+  evaulate_epochs: 10
+  belief_min_count: 5

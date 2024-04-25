@@ -36,27 +36,6 @@ def traverse_coma(rootdir, collect_fn):
                     # name = os.path.splitext(os.path.split(obj_f)[-1])[0]
                     name = os.path.relpath(os.path.abspath(obj_f), rootdir)
 
-                    # vs, vt, vn, t_vs, t_vt, t_vn = mesh_io.load_mesh(obj_f)
-                    # vs = vs.astype(np.float32)
-
-                    # # save_ply(f"{pi}-{current_vi}-{fi}.org.ply", vs)
-                    # # s_kpt = ver2kpt@vs
-                    # s, r, t  = get_arap_sRT(vs, v_template) # estimate rigid pose with scale
-
-                    # if do_scale:
-                    #     # template is always in mm
-                    #     if do_pose:
-                    #         vs = vs.dot(s*r) + t
-                    #     else:
-                    #         vs = vs*s
-                    # else:
-                    #     # CoMA data in meter
-                    #     if do_pose:
-                    #         vs = (vs.dot(r) + t/s) * 1000
-                    #     else:
-                    #         vs = vs * 1000
-                    # vs = vs.astype(np.float32)
-
                     collect_fn(current_si, name, pid_name, vid_name, current_vi, fi)
 
                     current_si += 1
@@ -67,12 +46,48 @@ def traverse_coma(rootdir, collect_fn):
                     os._exit(1)
             current_vi += 1
 
+def traverse_facescape(rootdir, collect_fn):
+    rootdir  = os.path.abspath(rootdir)
+    pid_dirs = [f for f in natsorted(glob(os.path.join(rootdir, "*"))) if os.path.isdir(f)]  # this is not sorted !!!
+
+    total = 0
+    total += len(glob(os.path.join(rootdir, "*", "*", "*.obj"))) # [pid]/models_reg/[eid]_[e_name].obj
+
+    pbar = tqdm(total=total)
+
+    current_si = 0
+    current_vi = 0
+    for pi, pid_dir in enumerate(pid_dirs):
+        pid_name = os.path.split(pid_dir)[-1]
+
+        vid_name = os.path.split(pid_dir)[-1]
+        obj_list = natsorted(glob(os.path.join(pid_dir, "models_reg", "*.obj")))
+
+        for fi, obj_f in enumerate(obj_list):
+            pbar.update()
+            try:
+                # name = os.path.splitext(os.path.split(obj_f)[-1])[0]
+                name = os.path.relpath(os.path.abspath(obj_f), rootdir)
+
+                eid_name = "_".join(os.path.split(os.path.splitext(obj_f)[0])[-1].split("_")[1:])
+
+                collect_fn(current_si, name, pid_name, eid_name, current_vi, fi)
+
+                current_si += 1
+
+            except Exception as ex:
+                import traceback
+                print(traceback.format_exc())
+                os._exit(1)
+        current_vi += 1
+
 def main(args):
 
     os.makedirs(args.out_dir, exist_ok=True)
-    train_json = os.path.join(args.out_dir, f"{args.dataset}-{args.split_method}_train.json")
-    valid_json = os.path.join(args.out_dir, f"{args.dataset}-{args.split_method}_valid.json")
-    test_json  = os.path.join(args.out_dir, f"{args.dataset}-{args.split_method}_test.json")
+    total_json = os.path.join(args.out_dir, f"{args.dataset}-{args.split_method}-total.json")
+    train_json = os.path.join(args.out_dir, f"{args.dataset}-{args.split_method}-train.json")
+    valid_json = os.path.join(args.out_dir, f"{args.dataset}-{args.split_method}-valid.json")
+    test_json  = os.path.join(args.out_dir, f"{args.dataset}-{args.split_method}-test.json")
 
     dataset_meta = {
         "pid_names":  [],
@@ -101,6 +116,8 @@ def main(args):
 
     if args.dataset == "coma":
         traverse_coma(args.data_dir, collect_fn)
+    elif args.dataset == "facescape":
+        traverse_facescape(args.data_dir, collect_fn)
 
     dataset_meta["train"] = []
     dataset_meta["valid"] = []
@@ -112,6 +129,24 @@ def main(args):
                 dataset_meta["test"].append(data)
             else:
                 dataset_meta["train"].append(data)
+
+    elif args.split_method == "split_by_pid":
+        with open(args.split_config, "r") as f:
+            split_cfg = json.load(f)
+        train_pid_names = split_cfg["train"]
+        valid_pid_names = split_cfg["valid"]
+        test_pid_names  = split_cfg["test"]
+
+        assert len(set(train_pid_names) & set(test_pid_names)) == 0, f"dataset is not correctly splitted, train/test got common {set(train_pid_names)&set(test_pid_names)}"
+        assert len(set(valid_pid_names) & set(test_pid_names)) == 0, f"dataset is not correctly splitted, valid/test got common {set(valid_pid_names)&set(test_pid_names)}"
+        for i, data in enumerate(dataset_meta["total"]):
+            pid = data[1][0]
+            if dataset_meta["pid_names"][pid] in train_pid_names:
+                dataset_meta["train"].append(data)
+            elif dataset_meta["pid_names"][pid] in valid_pid_names:
+                dataset_meta["valid"].append(data)
+            else:
+                dataset_meta["test"].append(data)
 
     if args.neutral_from == "first_frame":
         first_frame_by_pid_vid = defaultdict(lambda:(float('inf'), None)) # (pid, vid) -> (fid, idx)
@@ -133,6 +168,13 @@ def main(args):
                 dataset_meta["neu_by_pid"][pid].append(fname)
     
     filterd_train = [[name, pevf] for name, pevf in dataset_meta["train"]]
+
+    total_meta = {
+        "pid_names":  dataset_meta["pid_names"],
+        "eid_names":  dataset_meta["eid_names"],
+        "labels":     dataset_meta["total"],     # (name, (pid, eid, vid, fid))
+        "neu_by_pid": dataset_meta["neu_by_pid"]
+    }
 
     train_meta = {
         "pid_names":  dataset_meta["pid_names"],
@@ -160,6 +202,7 @@ def main(args):
             with open(out_json, "w") as f:
                 json.dump(obj, f)
     
+    save_if_not_exist(total_meta, total_json)
     save_if_not_exist(train_meta, train_json)
     save_if_not_exist(valid_meta, valid_json)
     save_if_not_exist(test_meta, test_json)
@@ -177,11 +220,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset",  type=str, choices=["coma"])
+    parser.add_argument("--dataset",  type=str, choices=["coma", "facescape"])
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--out_dir",  type=str, required=True)
 
     parser.add_argument("--split_method", type=str, default=None)
+    parser.add_argument("--split_config", type=str, default=None)
     parser.add_argument("--neutral_from", type=str, default=None)
     parser.add_argument("--neuexp_names", type=str, nargs="+", default=[])
 
@@ -192,6 +236,12 @@ if __name__ == "__main__":
             args.split_method = "coma_interpolation"
         if args.neutral_from is None:
             args.neutral_from = "first_frame"
+
+    elif args.dataset == "facescape":
+        if args.split_method is None:
+            args.split_method = "split_by_pid"
+        if len(args.neuexp_names) == 0:
+            args.neuexp_names = ["neutral"]
 
     print(args)
     main(args)

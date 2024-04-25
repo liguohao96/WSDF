@@ -1,0 +1,52 @@
+name: facescape
+mesh_topology: FaceScape
+dataset:
+  train:
+    - type: datasets.mesh_dataset.RegisteredMeshDataset
+      args:
+        - Data/Datasets/FaceScape/facescape_trainset
+        - Data/dataset_split/FaceScape/facescape-split_by_pid-train.json
+      kwargs:
+        scale_to_millimeter: 1
+  test:
+    facescape:
+      type: datasets.mesh_dataset.RegisteredMeshDataset
+      args:
+        - Data/Datasets/FaceScape/facescape_trainset
+        - Data/dataset_split/FaceScape/facescape-split_by_pid-test.json
+      kwargs:
+        scale_to_millimeter: 1
+model:
+  num_vec: 256
+  num_ind: 64
+  num_exp: 64
+  Encoder:
+    channels: [32, 64, 128, 128, 128, 256]
+  Decoder:
+    channels: [256]
+  NeuBank:
+    beta: 0.99
+loss:
+  weight:
+    rec: 1
+    kl:  1
+    neu: 1
+    mi:  0
+    jac: 10
+  gamma: [0, 500]
+optimizer:
+  type: torch.optim.AdamW
+  kwargs:
+    lr: 0.00001            # 1e-5
+    weight_decay: 0.00001  # 1e-5
+scheduler:
+  type: torch.optim.lr_scheduler.StepLR
+  args: [1]
+  kwargs:
+    gamma: 1
+train:
+  training_epochs: 100
+  accumulate_iter: 1
+  log_state_steps: 1000
+  evaulate_epochs: 10
+  belief_min_count: 5

@@ -7,8 +7,16 @@ import numpy as np
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SPIRAL_PLUS_ROOT = os.path.join(ROOT, "3rdparty", "spiralnet_plus")
 
+sys.path.insert(0, ROOT)
+import utils as my_utils
+from utils.io import mesh_io
+sys.path.pop(0)
+
 sys.path.insert(0, SPIRAL_PLUS_ROOT)
 import utils
+import importlib
+importlib.reload(utils)
+
 import utils as spiral_utils
 from utils import mesh_sampling as spiral_mesh_sampling
 sys.path.pop(0)
@@ -72,6 +80,13 @@ def main(args):
         ver = data["v_template"].reshape(-1, 3)
         tri = data["f"].reshape(-1, 3)
 
+    elif args.name == "FaceScape":
+        save_path = os.path.join(ROOT, "Data", "SpiralPlusCache_FaceScape.pth")
+
+        data = np.load(os.path.join(ROOT, "Data", "3DMM_FaceScape.npz"), allow_pickle=True)
+        ver = (data["id_mean"] + data["exp_mean"]).reshape(-1, 3)
+        tri = (data["tri"]).reshape(-1, 3)
+
     # vs, vt, vn, t_vs, t_vt, t_vn = load_mesh(args.mesh)
     As, Ds, Us, Fs, Vs, Ss = build_spiral_cache(ver, tri)
 
@@ -94,7 +109,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--mesh", type=str, required=True, help="mesh file")
-    parser.add_argument("--name", type=str, required=True, choices=["FLAME2020"])
+    parser.add_argument("--name", type=str, required=True, choices=["FLAME2020", "FaceScape"])
 
     args = parser.parse_args()
 

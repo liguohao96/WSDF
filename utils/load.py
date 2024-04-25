@@ -87,7 +87,18 @@ def load_wsdf(ckpt_path, config=None, device=None):
             TOPOLOGY_CONFIG["tri"]     = torch.as_tensor(data["f"].astype(np.int32)).reshape(-1, 3)
             TOPOLOGY_CONFIG["uv"]      = torch.as_tensor(texr["vt"].astype(np.float32)).reshape(-1, 2)
             TOPOLOGY_CONFIG["uv_tri"]  = torch.as_tensor(texr["ft"].astype(np.int32)).reshape(-1, 3)
-        
+
+        elif mesh_topology == "FaceScape":
+            # read FaceScape model
+            data = np.load(os.path.join(ROOT, "Data", "3DMM_FaceScape.npz"), allow_pickle=True)
+            ver = (data["id_mean"] + data["exp_mean"]).reshape(-1, 3)
+            tri = (data["tri"]).reshape(-1, 3)
+            
+            TOPOLOGY_CONFIG["ver"]     = torch.as_tensor(ver.astype(np.float32)).reshape(-1, 3)
+            TOPOLOGY_CONFIG["tri"]     = torch.as_tensor(tri.astype(np.int32)).reshape(-1, 3)
+            TOPOLOGY_CONFIG["uv"]      = torch.as_tensor(data["uv"].astype(np.float32)).reshape(-1, 2)
+            TOPOLOGY_CONFIG["uv_tri"]  = torch.as_tensor(data["uv_tri"].astype(np.int32)).reshape(-1, 3)
+
         for k, v in TOPOLOGY_CONFIG.items():
             TOPOLOGY_CONFIG[k] = v.to(device)
         
@@ -146,7 +157,7 @@ def load_wsdf(ckpt_path, config=None, device=None):
         from models.common       import Normalize
         from models.VAEs         import NaiveVAEs
 
-        spiral_cache = torch.load(os.path.join(ROOT, "Data", "SpiralPlusCache_FLAME2020.pth"), map_location="cpu")
+        spiral_cache = torch.load(os.path.join(ROOT, "Data", f"SpiralPlusCache_{mesh_topology}.pth"), map_location="cpu")
         spiral_indices      = spiral_cache["S"]
         downsample_matrices = spiral_cache["D"]
 
@@ -158,8 +169,8 @@ def load_wsdf(ckpt_path, config=None, device=None):
         NeuBank = NeutralBank(1, (NV, 3), torch.zeros((NV, 3)))
 
         Norm    = Normalize(
-            torch.full((1, NV, 3), 0), 
-            torch.full((1, NV, 3), 1)).to(device)
+            torch.full((1, NV, 3), 0.0), 
+            torch.full((1, NV, 3), 1.0)).to(device)
 
         model_dict = {
             "Encoder": Encoder,
