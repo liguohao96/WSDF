@@ -6,6 +6,10 @@ This is the official code for FG 2024 paper.
 
 WSDF learns a 3D Face Model from registered meshes through disentangling identity and expression without expression labels.
 
+|Application|Demo|
+|:-:|:-:|
+|text-to-3d|"a DSLR photo of a man with tiger makeup,..." <video width="100" height="50" src="https://github.com/liguohao96/WSDF/assets/16358157/4a0190e9-46f4-41b2-adc0-e0bd41adb263"></video>|
+
 ## Change Logs
 
 - 2024/04/15: initial commit
