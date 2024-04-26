@@ -1,0 +1,12 @@
+name: text_3d_man_tiger
+
+# StableDiffusion
+sd_version: "2.1"
+text: "a DSLR photo of a man with tiger makeup, head, photorealistic, 8K, HDR"
+negative_text: "unrealistic, blurry, low quality, out of focus, ugly, low contrast, dull, dark, low-resolution, oversaturation"
+add_directional_text: True
+
+# Geometry
+tex_file: Data/FLAME2020/tex_mean.png
+mesh_scale: 0.01
+mesh_shift: [0, 0, 0.5]

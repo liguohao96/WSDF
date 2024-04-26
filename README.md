@@ -1,14 +1,14 @@
 # 3D Face Modeling via Weakly-supervised Disentanglement Network joint Identity-consistency Prior (WSDF)
 
-[[Arxiv Paper]()]
+[[arXiv Paper](https://arxiv.org/abs/2404.16536)]
 
 This is the official code for FG 2024 paper.
 
 WSDF learns a 3D Face Model from registered meshes through disentangling identity and expression without expression labels.
 
-|Application|Demo|
-|:-:|:-:|
-|text-to-3d|"a DSLR photo of a man with tiger makeup,..." <video width="100" height="50" src="https://github.com/liguohao96/WSDF/assets/16358157/4a0190e9-46f4-41b2-adc0-e0bd41adb263"></video>|
+|Application|Demo|run time|
+|:-:|:-:|:-:|
+|text-to-3d|"a DSLR photo of a man with tiger makeup, ..." <video width="100" height="50" src="https://github.com/liguohao96/WSDF/assets/16358157/4a0190e9-46f4-41b2-adc0-e0bd41adb263"></video>|~5min on single RTX 3090|
 
 ## Change Logs
 
@@ -127,3 +127,21 @@ or
 python applications/text_3d.py --checkpoint [checkpoint file] --save_gif True --save_ply True --text "a DSLR photo of [], ..." --negative_text "blur, ..." --tex_mean Data/FLAME2020/tex_mean.png --name [name]
 ```
 It will save intermediate result and final mesh at `./temp/APP-tex_3d/[name]`
+
+## Acknowledgments
+
+Our network and evaluation codes are based on [spiralnet_plus](https://github.com/sw-gong/spiralnet_plus) and [FaceExpDisentanglement](https://github.com/rmraaron/FaceExpDisentanglement), thanks for their great works.
+
+Our `text-to-3d` codes are based on [Fantasia3D](https://github.com/Gorilla-Lab-SCUT/Fantasia3D) and [Perp-Neg](https://github.com/Perp-Neg/Perp-Neg-stablediffusion), thantks for their great works.
+
+
+## Citation
+
+```
+@misc{li2024wsdf,
+  title  = {3D Face Modeling via Weakly-supervised Disentanglement Network joint Identity-consistency Prior}, 
+  author = {Guohao Li, Hongyu Yang, Di Huang and Yunhong Wang},
+  year   = {2024},
+  eprint = {2404.16536},
+}
+```
