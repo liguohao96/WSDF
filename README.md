@@ -87,7 +87,7 @@ It will save intermediate result and final checkpoints at `./temp/[name]`
 
 |Link|Config|Training Datasets|
 |:-:|:-:|:-:|
-|[google drive]()|coma_full.yaml|CoMA|
+|[google drive](https://drive.google.com/file/d/1qQ_TCkLlsXj6_QTvRLwwFQIYa_b1Bzoe/view?usp=sharing)|coma_full.yaml|CoMA|
 
 - **using trained checkpoint**
 
