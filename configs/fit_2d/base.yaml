@@ -1,0 +1,9 @@
+name: fit_2d
+
+# Image
+fitting_image: Data/stylegan2-ada-result/seed0024.png
+
+# Geometry
+tex_file: Data/FLAME2020/tex_mean.png
+mesh_scale: 0.01
+mesh_shift: [0, 0, 0.5]
