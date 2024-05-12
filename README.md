@@ -9,6 +9,7 @@ WSDF learns a 3D Face Model from registered meshes through disentangling identit
 |Application|Demo|run time|
 |:-:|:-:|:-:|
 |text-to-3d|"a DSLR photo of a man with tiger makeup, ..." <video width="100" height="50" src="https://github.com/liguohao96/WSDF/assets/16358157/4a0190e9-46f4-41b2-adc0-e0bd41adb263"></video>|~5min on single RTX 3090|
+|image-fitting|fit & interpolating expression <video width="100" height="50" src="https://github.com/liguohao96/WSDF/assets/16358157/9a13c8ae-73ab-47f0-a862-4788cff4db3f"></video>|~15sec|
 
 ## Change Logs
 
@@ -124,9 +125,27 @@ python applications/text_3d.py --checkpoint [checkpoint file] --save_gif True --
 ```
 or
 ```shell
-python applications/text_3d.py --checkpoint [checkpoint file] --save_gif True --save_ply True --text "a DSLR photo of [], ..." --negative_text "blur, ..." --tex_mean Data/FLAME2020/tex_mean.png --name [name]
+python applications/text_3d.py --checkpoint [checkpoint file] --save_gif True --save_ply True \
+--text "a DSLR photo of [], ..." --negative_text "blur, ..." --tex_file Data/FLAME2020/tex_mean.png --name [name]
 ```
 It will save intermediate result and final mesh at `./temp/APP-tex_3d/[name]`
+
+## Application: Image-Fitting
+
+First, follow the first two steps in `Text-to-3D` (install `tiny-cuda-nn` and generate initial texture).
+
+Then, download `FLAME Mediapipe Landmark Embedding` from [here](https://flame.is.tue.mpg.de/download.php) and put extracted files under `Data/FLAME2020`.
+
+Finally, fitting image through
+```shell
+python applications/fit_2d.py --checkpoint [checkpoint file] --save_gif True --save_ply True --config [config file] 
+```
+or
+```shell
+python applications/fit_2d.py --checkpoint [checkpoint file] --save_gif True --save_ply True \
+--fitting_image [image file] --tex_mean Data/FLAME2020/tex_mean.png --name [name]
+```
+It will save intermediate result and final mesh at `./temp/APP-fid_2d/[name]`
 
 ## Acknowledgments
 
