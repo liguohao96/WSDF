@@ -1,5 +1,7 @@
 # 3D Face Modeling via Weakly-supervised Disentanglement Network joint Identity-consistency Prior (WSDF)
 
+
+[[project page](https://liguohao96.github.io/WSDF)]
 [[arXiv Paper](https://arxiv.org/abs/2404.16536)]
 
 This is the official code for FG 2024 paper.
@@ -157,10 +159,11 @@ Our `text-to-3d` codes are based on [Fantasia3D](https://github.com/Gorilla-Lab-
 ## Citation
 
 ```
-@misc{li2024wsdf,
+@inproceedings{li2024wsdf,
   title  = {3D Face Modeling via Weakly-supervised Disentanglement Network joint Identity-consistency Prior}, 
-  author = {Guohao Li, Hongyu Yang, Di Huang and Yunhong Wang},
+  author = {Guohao Li and Hongyu Yang and Di Huang and Yunhong Wang},
+  booktitle = {18th {IEEE} International Conference on Automatic Face and Gesture
+                  Recognition, {FG} 2024, Istanbul, Turkey, May 27-31, 2024},
   year   = {2024},
-  eprint = {2404.16536},
 }
 ```
